@@ -16,7 +16,7 @@ module MailStyle
 
       # Flatten nested parts
       def collect_parts(parts)
-        nested = parts.present? ? parts.map { |p| collect_parts(p.parts) }.flatten : []
+        nested = !parts.blank? ? parts.map { |p| collect_parts(p.parts) }.flatten : []
         [parts, nested].flatten
       end
 
@@ -46,6 +46,7 @@ module MailStyle
         # Parse original html
         html_document = create_html_document(html)
         html_document = absolutize_image_sources(html_document)
+        html_document = absolutize_relative_links(html_document)
 
         # Write inline styles
         element_styles = {}
@@ -96,6 +97,15 @@ module MailStyle
 
         document
       end
+      
+      def absolutize_relative_links(document)
+        document.css('a').each do |img|
+          src = img['href']
+          img['href'] = src.gsub(src, absolutize_url(src))
+        end
+
+        document
+      end
 
       # Create Nokogiri html document from part contents and add/amend certain elements.
       # Reference: http://www.creativeglo.co.uk/email-design/html-email-design-and-coding-tips-part-2/
@@ -110,7 +120,7 @@ module MailStyle
         # Create <head> element if missing
         head = document.at_css('head')
 
-        unless head.present?
+        unless !head.blank?
           head = Nokogiri::XML::Node.new('head', document)
           document.at_css('body').add_previous_sibling(head)
         end
@@ -140,7 +150,7 @@ module MailStyle
 
       # Update image urls
       def update_image_urls(style)
-        if default_url_options[:host].present?
+        if !default_url_options[:host].blank?
           # Replace urls in stylesheets
           style.gsub!($1, absolutize_url($1, 'stylesheets')) if style[/url\(['"]?(.*?)['"]?\)/i]
         end
@@ -173,7 +183,7 @@ module MailStyle
       def css_parser
         parser = CssParser::Parser.new
 
-        parser.add_block!(css_rules) if @css.present?
+        parser.add_block!(css_rules) if !@css.blank?
         parser.add_block!(@inline_rules)
         parser
       end
@@ -189,7 +199,7 @@ module MailStyle
 
       # Find the css file
       def css_file(name=nil)
-        if name.present?
+        if !name.blank?
           css = name.to_s
           css = css[/\.css$/] ? css : "#{css}.css"
           path = File.join(RAILS_ROOT, 'public', 'stylesheets', css)
